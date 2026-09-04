@@ -1,0 +1,287 @@
+:root {
+  color: #18202f;
+  background: #f4f7f9;
+  font-family:
+    Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+}
+
+button,
+input {
+  font: inherit;
+}
+
+.app-shell {
+  min-height: 100vh;
+  padding: 32px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.9), rgba(244, 247, 249, 0.95)),
+    #f4f7f9;
+}
+
+.workspace {
+  width: min(1180px, 100%);
+  margin: 0 auto;
+}
+
+.workspace.dense {
+  display: grid;
+  gap: 22px;
+}
+
+.masthead {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(320px, 480px);
+  gap: 24px;
+  align-items: end;
+  min-height: 42vh;
+}
+
+.eyebrow {
+  margin: 0 0 8px;
+  color: #0f766e;
+  font-size: 0.82rem;
+  font-weight: 800;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+h1,
+h2 {
+  margin: 0;
+  letter-spacing: 0;
+}
+
+h1 {
+  font-size: clamp(2.2rem, 5vw, 5.5rem);
+  line-height: 0.95;
+  color: #111827;
+}
+
+h2 {
+  font-size: 1rem;
+  color: #111827;
+}
+
+.ticker-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  padding: 8px;
+  border: 1px solid rgba(117, 130, 153, 0.28);
+  border-radius: 8px;
+  background: white;
+  box-shadow: 0 18px 48px rgba(24, 32, 47, 0.08);
+}
+
+.ticker-form input {
+  width: 100%;
+  min-width: 0;
+  border: 0;
+  padding: 14px 12px;
+  outline: 0;
+  color: #111827;
+  text-transform: uppercase;
+}
+
+.ticker-form button,
+.ticker-row button,
+.period-tabs button,
+.icon-link {
+  border: 1px solid rgba(117, 130, 153, 0.24);
+  border-radius: 8px;
+  background: #ffffff;
+  color: #18202f;
+  cursor: pointer;
+}
+
+.ticker-form button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 18px;
+  background: #0f766e;
+  color: white;
+  border-color: #0f766e;
+  font-weight: 800;
+}
+
+.ticker-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 28px;
+}
+
+.ticker-row button,
+.period-tabs button {
+  min-height: 38px;
+  padding: 0 14px;
+  font-size: 0.92rem;
+  font-weight: 700;
+}
+
+.page-header {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 16px;
+  align-items: center;
+}
+
+.page-header h1 {
+  font-size: 2.4rem;
+}
+
+.icon-link {
+  display: inline-flex;
+  width: 40px;
+  height: 40px;
+  align-items: center;
+  justify-content: center;
+  color: inherit;
+}
+
+.period-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: end;
+}
+
+.period-tabs button.active {
+  background: #18202f;
+  color: #ffffff;
+}
+
+.metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.metric-card,
+.detail-panel,
+.chart-panel,
+.state-row {
+  border: 1px solid rgba(117, 130, 153, 0.22);
+  border-radius: 8px;
+  background: white;
+}
+
+.metric-card {
+  display: grid;
+  gap: 8px;
+  min-height: 92px;
+  padding: 16px;
+}
+
+.metric-card span,
+dt {
+  color: #667085;
+  font-size: 0.82rem;
+}
+
+.metric-card strong {
+  font-size: 1.22rem;
+  color: #111827;
+}
+
+.chart-panel {
+  min-height: 420px;
+  padding: 20px;
+}
+
+.detail-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.detail-panel {
+  padding: 18px;
+}
+
+dl {
+  display: grid;
+  grid-template-columns: 120px minmax(0, 1fr);
+  gap: 12px 18px;
+  margin: 18px 0 0;
+}
+
+dd {
+  margin: 0;
+  color: #18202f;
+  font-weight: 700;
+}
+
+.state-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  width: fit-content;
+  padding: 12px 14px;
+  color: #344054;
+}
+
+.state-row.error {
+  color: #b42318;
+  border-color: rgba(180, 35, 24, 0.28);
+}
+
+.spin {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (max-width: 900px) {
+  .app-shell {
+    padding: 20px;
+  }
+
+  .masthead,
+  .page-header,
+  .detail-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .metrics-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .period-tabs {
+    justify-content: start;
+  }
+}
+
+@media (max-width: 560px) {
+  .ticker-form {
+    grid-template-columns: 1fr;
+  }
+
+  .ticker-form button {
+    min-height: 46px;
+    justify-content: center;
+  }
+
+  .metrics-grid {
+    grid-template-columns: 1fr;
+  }
+
+  dl {
+    grid-template-columns: 1fr;
+  }
+}
