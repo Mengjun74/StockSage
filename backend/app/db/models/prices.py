@@ -1,7 +1,7 @@
 from datetime import datetime
 from uuid import uuid4
 
-from sqlalchemy import DateTime, Float, Index, Integer, String, UniqueConstraint
+from sqlalchemy import BigInteger, DateTime, Float, Index, String, UniqueConstraint
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -23,7 +23,7 @@ class PriceRaw(Base):
     low: Mapped[float] = mapped_column(Float)
     close: Mapped[float] = mapped_column(Float)
     adjusted_close: Mapped[float | None] = mapped_column(Float, nullable=True)
-    volume: Mapped[int] = mapped_column(Integer)
+    volume: Mapped[int] = mapped_column(BigInteger)
     interval: Mapped[str] = mapped_column(String(8), index=True)
     provider: Mapped[str] = mapped_column(String(32), default="yahoo")
     ingested_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
@@ -44,7 +44,7 @@ class PriceDaily(Base):
     low: Mapped[float] = mapped_column(Float)
     close: Mapped[float] = mapped_column(Float)
     adjusted_close: Mapped[float | None] = mapped_column(Float, nullable=True)
-    volume: Mapped[int] = mapped_column(Integer)
+    volume: Mapped[int] = mapped_column(BigInteger)
     provider: Mapped[str] = mapped_column(String(32), default="yahoo")
     ingested_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
 
@@ -64,24 +64,36 @@ class PriceHourly(Base):
     low: Mapped[float] = mapped_column(Float)
     close: Mapped[float] = mapped_column(Float)
     adjusted_close: Mapped[float | None] = mapped_column(Float, nullable=True)
-    volume: Mapped[int] = mapped_column(Integer)
+    volume: Mapped[int] = mapped_column(BigInteger)
     provider: Mapped[str] = mapped_column(String(32), default="yahoo")
     ingested_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
 
 
 class MarketSnapshot(Base):
+    """Indicators as computed for one (ticker, bar, interval, period) request.
+
+    Interval and period are part of the identity, not metadata: a 1m request cannot
+    fill sma_200 and its "52w" high spans a month, so a snapshot is only meaningful
+    next to the window it was derived from.
+    """
+
     __tablename__ = "market_snapshots"
-    __table_args__ = (Index("ix_market_snapshots_ticker_timestamp", "ticker", "timestamp"),)
+    __table_args__ = (
+        UniqueConstraint("ticker", "timestamp", "interval", "period", name="uq_market_snapshots_window"),
+        Index("ix_market_snapshots_ticker_timestamp", "ticker", "timestamp"),
+    )
 
     id: Mapped[str] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid4)
     ticker: Mapped[str] = mapped_column(String(16), index=True)
     timestamp: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
+    interval: Mapped[str] = mapped_column(String(8))
+    period: Mapped[str] = mapped_column(String(8))
     current_price: Mapped[float] = mapped_column(Float)
     return_1h: Mapped[float | None] = mapped_column(Float, nullable=True)
     return_1d: Mapped[float | None] = mapped_column(Float, nullable=True)
     return_5d: Mapped[float | None] = mapped_column(Float, nullable=True)
     return_20d: Mapped[float | None] = mapped_column(Float, nullable=True)
-    volume: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    volume: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
     volume_avg_20d: Mapped[float | None] = mapped_column(Float, nullable=True)
     volume_ratio_20d: Mapped[float | None] = mapped_column(Float, nullable=True)
     high_20d: Mapped[float | None] = mapped_column(Float, nullable=True)

@@ -1,7 +1,7 @@
 import { AlertCircle, ArrowLeft, RefreshCw } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { fetchPrices } from "../api/client";
+import { describeApiError, fetchPrices } from "../api/client";
 import PriceChart from "../components/PriceChart";
 import type { PriceResponse, SupportedPeriod } from "../types/prices";
 import { formatCompact, formatCurrency, formatPercent } from "../utils/format";
@@ -26,8 +26,8 @@ export default function StockPage() {
       })
       .catch((reason: unknown) => {
         if (!cancelled) {
-          const fallback = reason instanceof Error ? reason.message : "Unable to load market data.";
-          setError(fallback);
+          setData(null);
+          setError(describeApiError(reason));
         }
       })
       .finally(() => {

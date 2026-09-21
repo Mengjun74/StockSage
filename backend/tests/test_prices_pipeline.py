@@ -1,39 +1,29 @@
 from datetime import UTC, datetime, timedelta
-import asyncio
 
 import pytest
 
-from app.pipelines.prices import InvalidTickerError, PricePipeline, normalize_price_bars, normalize_ticker
-from app.providers.base import MarketDataProvider, PriceBar, Quote
-
-
-class FakeMarketDataProvider(MarketDataProvider):
-    name = "fake"
-
-    async def get_price_history(self, ticker: str, interval: str, period: str) -> list[PriceBar]:
-        return [
-            PriceBar(
-                ticker=ticker,
-                timestamp=datetime(2026, 1, 1, tzinfo=UTC) + timedelta(days=index),
-                open=100 + index,
-                high=102 + index,
-                low=99 + index,
-                close=101 + index,
-                adjusted_close=101 + index,
-                volume=1_000_000 + index,
-                interval=interval,
-                provider=self.name,
-            )
-            for index in range(30)
-        ]
-
-    async def get_quote(self, ticker: str) -> Quote:
-        return Quote(ticker=ticker, current_price=123.45, name="Fake Corp", exchange="NMS", currency="USD", provider=self.name)
+from app.pipelines.prices import (
+    InsufficientDataError,
+    InvalidTickerError,
+    PricePipeline,
+    ProviderError,
+    normalize_price_bars,
+    normalize_ticker,
+)
+from app.providers.base import PriceBar
+from tests.fakes import FakeMarketDataProvider
 
 
 def test_normalize_ticker_accepts_common_symbols() -> None:
     assert normalize_ticker(" nvda ") == "NVDA"
-    assert normalize_ticker("brk.b") == "BRK.B"
+    assert normalize_ticker("brk.b") == "BRK-B"
+
+
+def test_class_shares_normalize_to_the_resolvable_spelling() -> None:
+    """BRK.B returns nothing upstream; BRK-B is the same security and does resolve."""
+    assert normalize_ticker("BRK.B") == "BRK-B"
+    assert normalize_ticker("bf.b") == "BF-B"
+    assert normalize_ticker("BRK-B") == "BRK-B"
 
 
 def test_normalize_ticker_rejects_invalid_symbols() -> None:
@@ -55,13 +45,28 @@ def test_normalize_price_bars_removes_invalid_and_duplicates() -> None:
     assert cleaned[0].ticker == "MSFT"
 
 
-def test_price_pipeline_returns_response_without_database() -> None:
+async def test_price_pipeline_returns_response_without_database() -> None:
     pipeline = PricePipeline(FakeMarketDataProvider())
 
-    response = asyncio.run(pipeline.get_prices("nvda", "1d", "1m"))
+    response = await pipeline.get_prices("nvda", "1d", "1m")
 
     assert response.ticker == "NVDA"
     assert response.provider == "fake"
     assert len(response.prices) == 30
     assert response.snapshot is not None
     assert response.data_quality.providers_available == ["fake"]
+
+
+async def test_price_pipeline_raises_on_provider_failure() -> None:
+    """A failing provider must not be reported as a successful, empty response."""
+    pipeline = PricePipeline(FakeMarketDataProvider(failure=RuntimeError("yahoo down")))
+
+    with pytest.raises(ProviderError):
+        await pipeline.get_prices("NVDA", "1d", "6m")
+
+
+async def test_price_pipeline_raises_when_provider_returns_nothing() -> None:
+    pipeline = PricePipeline(FakeMarketDataProvider(bar_count=0))
+
+    with pytest.raises(InsufficientDataError):
+        await pipeline.get_prices("NVDA", "1d", "6m")

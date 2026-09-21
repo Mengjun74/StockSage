@@ -3,11 +3,14 @@ uvicorn[standard]==0.32.1
 pydantic==2.10.3
 pydantic-settings==2.6.1
 SQLAlchemy==2.0.36
+# Required by SQLAlchemy's asyncio support, but only auto-installed below Python 3.13.
+greenlet==3.5.6
 alembic==1.14.0
 psycopg[binary]==3.2.3
 httpx==0.28.1
 pandas==2.2.3
 numpy==2.2.0
-yfinance==0.2.50
+# Yahoo's anti-bot changes break older releases outright; 0.2.50 returned no data at all.
+yfinance==1.0
 pytest==8.3.4
 pytest-asyncio==0.25.0

@@ -7,6 +7,18 @@ import pandas as pd
 from app.providers.base import MarketDataProvider, PriceBar, Quote
 
 
+# Yahoo's period vocabulary is not the API's: it accepts "6mo", not "6m". An untranslated
+# value is rejected by Yahoo and yfinance surfaces that as an empty frame rather than an
+# exception, so a missing entry here reads as "no data for this ticker".
+YAHOO_PERIODS = {
+    "1m": "1mo",
+    "3m": "3mo",
+    "6m": "6mo",
+    "1y": "1y",
+    "5y": "5y",
+}
+
+
 class YahooMarketDataProvider(MarketDataProvider):
     name = "yahoo"
 
@@ -19,9 +31,13 @@ class YahooMarketDataProvider(MarketDataProvider):
     def _download_history(self, ticker: str, interval: str, period: str) -> list[PriceBar]:
         import yfinance as yf
 
+        yahoo_period = YAHOO_PERIODS.get(period)
+        if yahoo_period is None:
+            raise ValueError(f"Period {period!r} has no Yahoo equivalent. Supported: {sorted(YAHOO_PERIODS)}.")
+
         frame = yf.download(
             ticker,
-            period=period,
+            period=yahoo_period,
             interval=interval,
             auto_adjust=False,
             progress=False,
