@@ -25,6 +25,11 @@ Example:
 curl "http://localhost:8003/api/v1/stocks/NVDA/prices?interval=1d&period=6m"
 ```
 
+Coverage is US listings. Class shares may be written either way -- `BRK.B` and `BRK-B`
+both resolve, and responses return the hyphenated spelling. Tickers carrying a foreign
+exchange suffix (`SHOP.TO`, `BP.L`) are not supported, because a dot is read as a class
+separator.
+
 ## Getting Started
 
 Docker Compose is the supported way to run this project. It brings up PostgreSQL, Redis,

@@ -16,7 +16,14 @@ from tests.fakes import FakeMarketDataProvider
 
 def test_normalize_ticker_accepts_common_symbols() -> None:
     assert normalize_ticker(" nvda ") == "NVDA"
-    assert normalize_ticker("brk.b") == "BRK.B"
+    assert normalize_ticker("brk.b") == "BRK-B"
+
+
+def test_class_shares_normalize_to_the_resolvable_spelling() -> None:
+    """BRK.B returns nothing upstream; BRK-B is the same security and does resolve."""
+    assert normalize_ticker("BRK.B") == "BRK-B"
+    assert normalize_ticker("bf.b") == "BF-B"
+    assert normalize_ticker("BRK-B") == "BRK-B"
 
 
 def test_normalize_ticker_rejects_invalid_symbols() -> None:

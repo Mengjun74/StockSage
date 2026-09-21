@@ -118,7 +118,11 @@ def normalize_ticker(ticker: str) -> str:
     normalized = ticker.strip().upper()
     if not TICKER_PATTERN.match(normalized):
         raise InvalidTickerError("Ticker must be 1-15 uppercase letters, numbers, dots, or dashes.")
-    return normalized
+    # Class shares are written both ways in the wild -- BRK.B and BRK-B -- but only the
+    # hyphenated form resolves upstream. Coverage is US listings only, so a dot here is
+    # always a class separator and never a foreign exchange suffix such as .TO or .L,
+    # which do need their dots.
+    return normalized.replace(".", "-")
 
 
 def normalize_price_bars(bars: list[PriceBar]) -> list[PriceBar]:
