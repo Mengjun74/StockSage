@@ -24,6 +24,10 @@ class InsufficientDataError(ValueError):
     pass
 
 
+class ProviderError(RuntimeError):
+    pass
+
+
 class PricePipeline:
     def __init__(self, provider: MarketDataProvider) -> None:
         self.provider = provider
@@ -40,17 +44,9 @@ class PricePipeline:
             bars = await self.provider.get_price_history(normalized_ticker, interval, period)
         except Exception as exc:
             logger.exception("market data provider failed", extra={"ticker": normalized_ticker, "provider": self.provider.name})
-            return PriceResponse(
-                ticker=normalized_ticker,
-                interval=interval,
-                period=period,
-                provider=self.provider.name,
-                prices=[],
-                data_quality=DataQuality(
-                    providers_failed=[self.provider.name],
-                    warnings=[f"{self.provider.name} failed: {exc}"],
-                ),
-            )
+            raise ProviderError(
+                f"{self.provider.name} could not return price history for {normalized_ticker}."
+            ) from exc
 
         bars = normalize_price_bars(bars)
         if not bars:

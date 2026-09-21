@@ -5,7 +5,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.dependencies import get_price_pipeline
 from app.db.session import get_db_session
-from app.pipelines.prices import InsufficientDataError, InvalidTickerError, PricePipeline, normalize_ticker
+from app.pipelines.prices import (
+    InsufficientDataError,
+    InvalidTickerError,
+    PricePipeline,
+    ProviderError,
+    normalize_ticker,
+)
 from app.schemas.prices import PriceResponse, StockMetadata, SupportedInterval, SupportedPeriod
 
 
@@ -55,3 +61,5 @@ async def get_prices(
         raise HTTPException(status_code=400, detail={"error": "INVALID_TICKER", "message": str(exc)}) from exc
     except InsufficientDataError as exc:
         raise HTTPException(status_code=404, detail={"error": "INSUFFICIENT_DATA", "message": str(exc)}) from exc
+    except ProviderError as exc:
+        raise HTTPException(status_code=502, detail={"error": "PROVIDER_FAILED", "message": str(exc)}) from exc
