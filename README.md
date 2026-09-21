@@ -22,7 +22,7 @@ GET /api/v1/stocks/{ticker}/prices?interval=1d&period=6m
 Example:
 
 ```bash
-curl "http://localhost:8000/api/v1/stocks/NVDA/prices?interval=1d&period=6m"
+curl "http://localhost:8003/api/v1/stocks/NVDA/prices?interval=1d&period=6m"
 ```
 
 ## Getting Started
@@ -38,8 +38,8 @@ docker compose up --build
 Then open:
 
 - Frontend: `http://localhost:5173`
-- Backend health: `http://localhost:8000/api/v1/health`
-- Interactive API docs: `http://localhost:8000/docs`
+- Backend health: `http://localhost:8003/api/v1/health`
+- Interactive API docs: `http://localhost:8003/docs`
 
 Stop the stack, keeping database contents:
 

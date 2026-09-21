@@ -46,7 +46,8 @@ services:
       - ./backend/app:/app/app
       - ./backend/alembic:/app/alembic
     ports:
-      - "8000:8000"
+      # Published on 8003: 8000 is a common default and is often already taken.
+      - "8003:8000"
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://localhost:8000/api/v1/health"]
       interval: 10s
@@ -66,7 +67,7 @@ services:
     container_name: stock_ai_frontend
     restart: unless-stopped
     environment:
-      VITE_API_BASE_URL: http://localhost:8000/api/v1
+      VITE_API_BASE_URL: http://localhost:8003/api/v1
       CHOKIDAR_USEPOLLING: "true"
     volumes:
       # Only the sources: node_modules must stay the copy installed in the image.
