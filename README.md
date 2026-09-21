@@ -25,68 +25,91 @@ Example:
 curl "http://localhost:8000/api/v1/stocks/NVDA/prices?interval=1d&period=6m"
 ```
 
-## Environment
+## Getting Started
 
-Use `.env.example` as the template. `.env` contains placeholder values only and is ignored by git.
-
-Inside Docker Compose:
-
-```env
-DATABASE_URL=postgresql+psycopg://stockuser:stockpass@db:5432/stock_ai
-REDIS_URL=redis://redis:6379/0
-```
-
-When running FastAPI on the host while PostgreSQL remains in Docker:
-
-```env
-DATABASE_URL=postgresql+psycopg://stockuser:stockpass@localhost:5433/stock_ai
-REDIS_URL=redis://localhost:6379/0
-```
-
-AI placeholders for later phases:
-
-```env
-OPENAI_API_KEY=your_openai_api_key_here
-OPENAI_MODEL=your_openai_model_here
-```
-
-## Docker Development
-
-Start the full stack:
+Docker Compose is the supported way to run this project. It brings up PostgreSQL, Redis,
+the FastAPI backend and the Vite dev server together, applies migrations, and waits for
+the backend to pass its health check before starting the frontend.
 
 ```bash
 docker compose up --build
 ```
 
-Run migrations:
-
-```bash
-docker compose exec backend alembic upgrade head
-```
-
-Open:
+Then open:
 
 - Frontend: `http://localhost:5173`
 - Backend health: `http://localhost:8000/api/v1/health`
+- Interactive API docs: `http://localhost:8000/docs`
 
-Stop containers without deleting database data:
+Stop the stack, keeping database contents:
 
 ```bash
 docker compose down
 ```
 
-## Local Backend Tests
+### Editing code
+
+`backend/app`, `backend/alembic` and `frontend/src` are bind-mounted into the containers,
+so both applications reload in place and an edit needs no rebuild. Rebuild only when
+dependencies change:
+
+```bash
+docker compose up --build backend    # after editing backend/requirements.txt
+docker compose up --build frontend   # after editing frontend/package.json
+```
+
+Migrations are applied on backend start. To run them by hand after adding a revision:
+
+```bash
+docker compose exec backend alembic upgrade head
+```
+
+### Running the backend outside Docker
+
+Supported on Linux and macOS. Point `DATABASE_URL` at the published port and run uvicorn
+from `backend/`:
+
+```bash
+DATABASE_URL=postgresql+psycopg://stockuser:stockpass@localhost:5433/stock_ai   uvicorn app.main:app --reload
+```
+
+This does not work on Windows: psycopg's async mode refuses to run on the default
+ProactorEventLoop, so every request touching the database fails. Use Docker there.
+
+## Environment
+
+The stack starts without any configuration -- Compose supplies the database and Redis
+URLs directly, and `.env` is optional. Copy the template when you need to set a key:
+
+```bash
+cp .env.example .env
+```
+
+`.env` is ignored by git and ships placeholder values only. Keys for later phases
+(`OPENAI_API_KEY`, `FRED_API_KEY`, and the other providers) live there.
+
+## Tests
 
 ```bash
 cd backend
+pip install -r requirements.txt
 pytest
 ```
 
-Automated tests mock the market provider and do not require live Yahoo access.
+Tests substitute a deterministic provider for Yahoo and need neither network access nor a
+database, so they run anywhere.
+
+Frontend type checking and production build:
+
+```bash
+cd frontend
+npm install
+npm run build
+```
 
 ## PostgreSQL
 
-The Docker database is available to host tools at:
+The Docker database is published for host tools such as psql or a GUI client at:
 
 ```text
 Host: localhost

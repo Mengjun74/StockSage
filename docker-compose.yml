@@ -30,12 +30,30 @@ services:
     container_name: stock_ai_backend
     restart: unless-stopped
     env_file:
-      - .env
+      # Optional so a fresh clone runs before anyone copies .env.example.
+      - path: .env
+        required: false
     environment:
       DATABASE_URL: postgresql+psycopg://stockuser:stockpass@db:5432/stock_ai
       REDIS_URL: redis://redis:6379/0
+      # Bind mounts do not deliver inotify events on Docker Desktop for Windows,
+      # so the reloader has to poll to notice edits.
+      WATCHFILES_FORCE_POLLING: "true"
+    command: >
+      sh -c "alembic upgrade head &&
+             uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
+    volumes:
+      - ./backend/app:/app/app
+      - ./backend/alembic:/app/alembic
     ports:
       - "8000:8000"
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8000/api/v1/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      # Migrations run before the server binds.
+      start_period: 40s
     depends_on:
       db:
         condition: service_healthy
@@ -49,10 +67,18 @@ services:
     restart: unless-stopped
     environment:
       VITE_API_BASE_URL: http://localhost:8000/api/v1
+      CHOKIDAR_USEPOLLING: "true"
+    volumes:
+      # Only the sources: node_modules must stay the copy installed in the image.
+      - ./frontend/src:/app/src
+      - ./frontend/index.html:/app/index.html
+      - ./frontend/vite.config.ts:/app/vite.config.ts
+      - ./frontend/tsconfig.json:/app/tsconfig.json
     ports:
       - "5173:5173"
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
 
 volumes:
   stock_ai_pgdata:
