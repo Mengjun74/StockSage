@@ -9,7 +9,7 @@ from app.analytics.indicators import build_indicator_snapshot
 from app.analytics.price_structure import build_price_structure
 from app.db.models.prices import MarketSnapshot, PriceDaily, PriceHourly, PriceRaw
 from app.providers.base import MarketDataProvider, PriceBar
-from app.schemas.prices import DataQuality, PricePoint, PriceResponse
+from app.schemas.prices import DataQuality, IndicatorSnapshot, PricePoint, PriceResponse
 
 
 logger = logging.getLogger(__name__)
@@ -56,7 +56,7 @@ class PricePipeline:
         price_structure = build_price_structure(bars)
 
         if session is not None:
-            await self.persist_prices(session, bars, snapshot)
+            await self.persist_prices(session, bars, snapshot, period)
 
         return PriceResponse(
             ticker=normalized_ticker,
@@ -84,7 +84,8 @@ class PricePipeline:
         self,
         session: AsyncSession,
         bars: list[PriceBar],
-        snapshot: object | None,
+        snapshot: IndicatorSnapshot | None,
+        period: str,
     ) -> None:
         ingested_at = datetime.now(UTC)
         raw_rows = [_bar_to_row(bar, ingested_at) for bar in bars]
@@ -95,14 +96,20 @@ class PricePipeline:
         await _upsert_rows(session, clean_model, clean_rows, ["ticker", "timestamp", "provider"])
 
         if snapshot is not None:
-            snapshot_data = snapshot.model_dump()
-            session.add(
-                MarketSnapshot(
-                    ticker=bars[-1].ticker,
-                    timestamp=bars[-1].timestamp,
-                    created_at=ingested_at,
-                    **snapshot_data,
-                )
+            # A plain insert here appended a duplicate row on every request.
+            snapshot_row = {
+                "ticker": bars[-1].ticker,
+                "timestamp": bars[-1].timestamp,
+                "interval": bars[-1].interval,
+                "period": period,
+                "created_at": ingested_at,
+                **snapshot.model_dump(),
+            }
+            await _upsert_rows(
+                session,
+                MarketSnapshot,
+                [snapshot_row],
+                ["ticker", "timestamp", "interval", "period"],
             )
         await session.commit()
 
@@ -180,7 +187,7 @@ def _clean_bar_to_row(bar: PriceBar, ingested_at: datetime) -> dict[str, object]
 
 async def _upsert_rows(
     session: AsyncSession,
-    model: type[PriceRaw] | type[PriceDaily] | type[PriceHourly],
+    model: type[PriceRaw] | type[PriceDaily] | type[PriceHourly] | type[MarketSnapshot],
     rows: list[dict[str, object]],
     conflict_columns: list[str],
 ) -> None:
