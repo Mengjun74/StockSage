@@ -30,6 +30,12 @@ class Settings(BaseSettings):
     openai_api_key: str | None = None
     openai_model: str | None = None
 
+    # Gemini. Free-tier keys answer 429 on the pro models, so the default is flash.
+    gemini_api_key: str | None = None
+    gemini_model: str = "gemini-3-flash-preview"
+    gemini_timeout_seconds: float = 120.0
+    gemini_max_attempts: int = 4
+
     twelve_data_api_key: str | None = None
     finnhub_api_key: str | None = None
     alpha_vantage_api_key: str | None = None

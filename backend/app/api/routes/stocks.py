@@ -3,8 +3,15 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.dependencies import get_news_pipeline, get_price_pipeline
+from app.api.dependencies import (
+    AnalysisUnavailableError,
+    get_analysis_pipeline,
+    get_news_pipeline,
+    get_price_pipeline,
+)
 from app.db.session import get_db_session
+from app.llm.gemini import LlmError
+from app.pipelines.analysis import AnalysisError, AnalysisPipeline
 from app.pipelines.news import NewsPipeline
 from app.pipelines.prices import (
     InsufficientDataError,
@@ -13,6 +20,7 @@ from app.pipelines.prices import (
     ProviderError,
     normalize_ticker,
 )
+from app.schemas.analysis import AnalysisResponse
 from app.schemas.news import NewsResponse
 from app.schemas.prices import PriceResponse, StockMetadata, SupportedInterval, SupportedPeriod
 
@@ -89,3 +97,34 @@ async def get_news(
     if refresh:
         await pipeline.ingest(session, normalized)
     return await pipeline.read(session, normalized, days)
+
+
+@router.post("/{ticker}/analysis", response_model=AnalysisResponse)
+async def run_analysis(
+    ticker: str,
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+    refresh_news: bool = Query(default=True, description="Pull news before analysing."),
+) -> AnalysisResponse:
+    """Run the bull, bear and judge agents over current prices and archived news.
+
+    A POST because it is not a lookup: it spends model calls and appends a row that a
+    later review will score.
+    """
+    try:
+        pipeline = get_analysis_pipeline()
+    except AnalysisUnavailableError as exc:
+        raise HTTPException(status_code=503, detail={"error": "ANALYSIS_UNAVAILABLE", "message": str(exc)}) from exc
+
+    try:
+        normalized = normalize_ticker(ticker)
+        if refresh_news:
+            await pipeline.news.ingest(session, normalized)
+        return await pipeline.analyse(session, normalized)
+    except InvalidTickerError as exc:
+        raise HTTPException(status_code=400, detail={"error": "INVALID_TICKER", "message": str(exc)}) from exc
+    except InsufficientDataError as exc:
+        raise HTTPException(status_code=404, detail={"error": "INSUFFICIENT_DATA", "message": str(exc)}) from exc
+    except ProviderError as exc:
+        raise HTTPException(status_code=502, detail={"error": "PROVIDER_FAILED", "message": str(exc)}) from exc
+    except (AnalysisError, LlmError) as exc:
+        raise HTTPException(status_code=502, detail={"error": "ANALYSIS_FAILED", "message": str(exc)}) from exc
