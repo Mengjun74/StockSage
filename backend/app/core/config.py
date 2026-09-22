@@ -18,6 +18,15 @@ class Settings(BaseSettings):
     cache_ttl_intraday_seconds: int = 300
     cache_ttl_quote_seconds: int = 60
 
+    # Yahoo's feed answers 404 to httpx's default User-Agent and 200 to anything else.
+    http_user_agent: str = "StockSage/0.1"
+
+    # The SEC rejects requests whose User-Agent names no contact address -- 403, not a
+    # warning. Set SEC_USER_AGENT to something like "StockSage/0.1 (you@example.com)"
+    # to enable filings; until then that source is skipped. No address ships in the repo.
+    sec_user_agent: str = "StockSage/0.1"
+    news_lookback_days: int = 14
+
     openai_api_key: str | None = None
     openai_model: str | None = None
 

@@ -3,8 +3,9 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.dependencies import get_price_pipeline
+from app.api.dependencies import get_news_pipeline, get_price_pipeline
 from app.db.session import get_db_session
+from app.pipelines.news import NewsPipeline
 from app.pipelines.prices import (
     InsufficientDataError,
     InvalidTickerError,
@@ -12,6 +13,7 @@ from app.pipelines.prices import (
     ProviderError,
     normalize_ticker,
 )
+from app.schemas.news import NewsResponse
 from app.schemas.prices import PriceResponse, StockMetadata, SupportedInterval, SupportedPeriod
 
 
@@ -63,3 +65,27 @@ async def get_prices(
         raise HTTPException(status_code=404, detail={"error": "INSUFFICIENT_DATA", "message": str(exc)}) from exc
     except ProviderError as exc:
         raise HTTPException(status_code=502, detail={"error": "PROVIDER_FAILED", "message": str(exc)}) from exc
+
+
+@router.get("/{ticker}/news", response_model=NewsResponse)
+async def get_news(
+    ticker: str,
+    pipeline: Annotated[NewsPipeline, Depends(get_news_pipeline)],
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+    days: int = Query(default=7, ge=1, le=90),
+    refresh: bool = Query(default=False, description="Fetch from the sources before reading."),
+) -> NewsResponse:
+    """Archived stories for a ticker.
+
+    Reads what has been ingested rather than fetching, so a request returns the same
+    view the scheduled analysis saw. `refresh=true` pulls first, for looking at
+    something between scheduled runs.
+    """
+    try:
+        normalized = normalize_ticker(ticker)
+    except InvalidTickerError as exc:
+        raise HTTPException(status_code=400, detail={"error": "INVALID_TICKER", "message": str(exc)}) from exc
+
+    if refresh:
+        await pipeline.ingest(session, normalized)
+    return await pipeline.read(session, normalized, days)
