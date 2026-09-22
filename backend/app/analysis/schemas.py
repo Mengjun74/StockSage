@@ -18,8 +18,13 @@ CASE_SCHEMA = {
             },
         },
         "strongest_counterpoint": {"type": "string"},
+        # Required so that considering the filings is visible rather than hoped for.
+        # "Nothing here bears on this call" is a valid answer; silence is not.
+        "filings_assessment": {"type": "string"},
     },
-    "required": ["case_strength", "summary", "points", "strongest_counterpoint"],
+    "required": [
+        "case_strength", "summary", "points", "strongest_counterpoint", "filings_assessment",
+    ],
 }
 
 VERDICT_SCHEMA = {

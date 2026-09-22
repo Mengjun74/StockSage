@@ -14,6 +14,7 @@ class CaseOut(BaseModel):
     summary: str
     points: list[CasePoint]
     strongest_counterpoint: str
+    filings_assessment: str = ""
 
 
 class LevelOut(BaseModel):

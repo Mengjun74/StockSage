@@ -29,6 +29,7 @@ class Case:
     summary: str
     points: list[dict]
     strongest_counterpoint: str
+    filings_assessment: str
 
 
 @dataclass(frozen=True)
@@ -61,7 +62,7 @@ async def argue_both_sides(client: GeminiClient, context: AnalysisContext) -> tu
 
 
 async def _argue(client: GeminiClient, side: str, rendered: str) -> Case:
-    prompt = f"{_prompt('shared')}\n\n{_prompt(side)}\n\n---\n\n{rendered}"
+    prompt = f"{_prompt('shared')}\n\n{_prompt(side)}\n\n{_prompt('filings')}\n\n---\n\n{rendered}"
     data = await client.generate_json(prompt, CASE_SCHEMA)
     return Case(
         side=side,
@@ -69,6 +70,7 @@ async def _argue(client: GeminiClient, side: str, rendered: str) -> Case:
         summary=str(data.get("summary", "")),
         points=list(data.get("points", [])),
         strongest_counterpoint=str(data.get("strongest_counterpoint", "")),
+        filings_assessment=str(data.get("filings_assessment", "")),
     )
 
 
@@ -76,7 +78,7 @@ async def adjudicate(
     client: GeminiClient, context: AnalysisContext, bull: Case, bear: Case
 ) -> Verdict:
     prompt = (
-        f"{_prompt('shared')}\n\n{_prompt('judge')}\n\n---\n\n{context.render()}\n\n"
+        f"{_prompt('shared')}\n\n{_prompt('judge')}\n\n{_prompt('filings')}\n\n---\n\n{context.render()}\n\n"
         f"## The case for\n{_render_case(bull)}\n\n## The case against\n{_render_case(bear)}"
     )
     data = await client.generate_json(prompt, VERDICT_SCHEMA, temperature=0.2)
@@ -122,5 +124,6 @@ def _render_case(case: Case) -> str:
     )
     return (
         f"Strength: {case.case_strength}\n{case.summary}\n{points}\n"
+        f"On the SEC filings: {case.filings_assessment}\n"
         f"Strongest point against this case: {case.strongest_counterpoint}"
     )

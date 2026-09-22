@@ -9,6 +9,7 @@ export interface AnalysisCase {
   summary: string;
   points: CasePoint[];
   strongest_counterpoint: string;
+  filings_assessment: string;
 }
 
 export interface AnalysisLevel {

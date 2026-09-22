@@ -122,6 +122,11 @@ function CaseCard({ side, body }: { side: "bull" | "bear"; body: AnalysisCase })
           </li>
         ))}
       </ul>
+      {body.filings_assessment && (
+        <p className="counterpoint">
+          <strong>On the SEC filings:</strong> {body.filings_assessment}
+        </p>
+      )}
       <p className="counterpoint">
         <strong>Strongest point against:</strong> {body.strongest_counterpoint}
       </p>

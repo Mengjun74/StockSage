@@ -198,3 +198,43 @@ def test_filings_get_their_own_section_and_are_not_crowded_out() -> None:
     assert "## SEC filings" in rendered
     assert "NVDA filed 10-Q on 2026-08-26" in rendered
     assert "Items: 2.02 (results of operations)" in rendered
+
+
+def test_both_sides_must_account_for_the_filings() -> None:
+    """Required in the schema so that considering them is visible rather than hoped
+    for. "Nothing here bears on this call" is a valid answer; silence is not."""
+    from app.analysis.schemas import CASE_SCHEMA
+
+    assert "filings_assessment" in CASE_SCHEMA["required"]
+
+
+def test_the_filings_guidance_reaches_every_agent() -> None:
+    from app.analysis.agents import _prompt
+
+    guidance = _prompt("filings")
+    assert "filings_assessment" in guidance
+    # The item codes are the difference between knowing something material happened
+    # and knowing it was earnings rather than a resignation.
+    for code in ("2.02", "5.02", "1.01", "424B5"):
+        assert code in guidance
+    # Permission to find nothing has to be explicit, or the field invites invention.
+    flowed = " ".join(guidance.split())
+    assert "is a complete, correct answer and is expected whenever it is true" in flowed
+    assert "not significant merely because it is in front of you" in flowed
+
+
+def test_the_judge_is_shown_what_each_side_made_of_the_filings() -> None:
+    from app.analysis.agents import Case, _render_case
+
+    rendered = _render_case(
+        Case(
+            side="bull",
+            case_strength="moderate",
+            summary="s",
+            points=[],
+            strongest_counterpoint="c",
+            filings_assessment="Last 10-Q was a month ago; nothing bears on a two-week call.",
+        )
+    )
+
+    assert "On the SEC filings: Last 10-Q was a month ago" in rendered

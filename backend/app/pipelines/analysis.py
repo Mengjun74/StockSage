@@ -120,6 +120,7 @@ def _case_json(case) -> dict:
         "summary": case.summary,
         "points": case.points,
         "strongest_counterpoint": case.strongest_counterpoint,
+        "filings_assessment": case.filings_assessment,
     }
 
 
@@ -132,6 +133,7 @@ def _case_out(case) -> CaseOut:
             {"claim": str(p.get("claim", "")), "evidence": str(p.get("evidence", ""))} for p in case.points
         ],
         strongest_counterpoint=case.strongest_counterpoint,
+        filings_assessment=case.filings_assessment,
     )
 
 
