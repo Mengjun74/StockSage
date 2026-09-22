@@ -12,6 +12,12 @@ class Settings(BaseSettings):
     database_url: str = "postgresql+psycopg://stockuser:stockpass@db:5432/stock_ai"
     redis_url: str | None = "redis://redis:6379/0"
 
+    # Upstream data is cached to keep repeated views -- and, later, several agents
+    # analysing one ticker -- from each costing a provider request.
+    cache_ttl_daily_seconds: int = 900
+    cache_ttl_intraday_seconds: int = 300
+    cache_ttl_quote_seconds: int = 60
+
     openai_api_key: str | None = None
     openai_model: str | None = None
 

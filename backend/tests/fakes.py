@@ -12,6 +12,8 @@ class FakeMarketDataProvider(MarketDataProvider):
         self.bar_count = bar_count
         self.failure = failure
         self.history_calls: list[tuple[str, str, str]] = []
+        self.quote_calls: list[str] = []
+        self.quote_price: float | None = 123.45
 
     async def get_price_history(self, ticker: str, interval: str, period: str) -> list[PriceBar]:
         self.history_calls.append((ticker, interval, period))
@@ -34,11 +36,12 @@ class FakeMarketDataProvider(MarketDataProvider):
         ]
 
     async def get_quote(self, ticker: str) -> Quote:
+        self.quote_calls.append(ticker)
         if self.failure is not None:
             raise self.failure
         return Quote(
             ticker=ticker,
-            current_price=123.45,
+            current_price=self.quote_price,
             name="Fake Corp",
             exchange="NMS",
             currency="USD",
