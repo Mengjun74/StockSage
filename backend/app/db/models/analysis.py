@@ -1,7 +1,7 @@
 from datetime import datetime
 from uuid import uuid4
 
-from sqlalchemy import Boolean, DateTime, Float, Index, Integer, String, Text
+from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Index, Integer, String, Text, UniqueConstraint
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -54,3 +54,41 @@ class Analysis(Base):
     articles_considered: Mapped[int] = mapped_column(Integer)
 
     evaluated: Mapped[bool] = mapped_column(Boolean, default=False)
+
+
+class AnalysisOutcome(Base):
+    """How a call actually turned out.
+
+    Kept apart from the call itself so `analyses` stays a record of what was decided
+    and this stays a record of how it was judged. The scoring rules will improve, and
+    re-running them must not edit the history they are scoring.
+    """
+
+    __tablename__ = "analysis_outcomes"
+    __table_args__ = (
+        UniqueConstraint("analysis_id", "method_version", name="uq_analysis_outcomes_method"),
+        Index("ix_analysis_outcomes_ticker_outcome", "ticker", "outcome"),
+    )
+
+    id: Mapped[str] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid4)
+    analysis_id: Mapped[str] = mapped_column(UUID(as_uuid=True), ForeignKey("analyses.id"), index=True)
+    ticker: Mapped[str] = mapped_column(String(16), index=True)
+    evaluated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    method_version: Mapped[str] = mapped_column(String(32))
+
+    outcome: Mapped[str] = mapped_column(String(24))
+    entry_filled: Mapped[bool] = mapped_column(Boolean)
+    entry_filled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    exit_price: Mapped[float | None] = mapped_column(Float, nullable=True)
+    exit_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    return_pct: Mapped[float | None] = mapped_column(Float, nullable=True)
+    max_favorable_pct: Mapped[float | None] = mapped_column(Float, nullable=True)
+    max_adverse_pct: Mapped[float | None] = mapped_column(Float, nullable=True)
+    bars_evaluated: Mapped[int] = mapped_column(Integer)
+
+    # Copied from the call so performance can be sliced without a join -- the whole
+    # question is whether agreement and confidence predict anything.
+    action: Mapped[str] = mapped_column(String(32))
+    confidence: Mapped[str] = mapped_column(String(16))
+    bull_strength: Mapped[str] = mapped_column(String(16))
+    bear_strength: Mapped[str] = mapped_column(String(16))
