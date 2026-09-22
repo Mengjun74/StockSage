@@ -2,7 +2,7 @@ import asyncio
 import logging
 from datetime import UTC, datetime, timedelta
 
-from sqlalchemy import select
+from sqlalchemy import and_, or_, select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -12,6 +12,8 @@ from app.schemas.news import NewsArticleOut, NewsResponse
 
 
 logger = logging.getLogger(__name__)
+
+FILINGS_SOURCE = "sec_edgar"
 
 
 class NewsPipeline:
@@ -70,11 +72,30 @@ class NewsPipeline:
         await session.commit()
         return len(rows)
 
-    async def read(self, session: AsyncSession, ticker: str, days: int) -> NewsResponse:
-        since = datetime.now(UTC) - timedelta(days=days)
+    async def read(
+        self, session: AsyncSession, ticker: str, days: int, filing_days: int | None = None
+    ) -> NewsResponse:
+        """Headlines and filings get different windows.
+
+        Material filings are episodic -- a 10-Q once a quarter, an 8-K when something
+        happens -- so a window suited to daily headlines excludes them almost always.
+        A quarterly report from five weeks ago is still the latest one; a headline from
+        five weeks ago is usually just noise.
+        """
+        now = datetime.now(UTC)
+        since = now - timedelta(days=days)
+        window = NewsArticle.published_at >= since
+        if filing_days is not None:
+            window = or_(
+                and_(NewsArticle.source != FILINGS_SOURCE, NewsArticle.published_at >= since),
+                and_(
+                    NewsArticle.source == FILINGS_SOURCE,
+                    NewsArticle.published_at >= now - timedelta(days=filing_days),
+                ),
+            )
         result = await session.execute(
             select(NewsArticle)
-            .where(NewsArticle.ticker == ticker, NewsArticle.published_at >= since)
+            .where(NewsArticle.ticker == ticker, window)
             .order_by(NewsArticle.published_at.desc())
         )
         return NewsResponse(

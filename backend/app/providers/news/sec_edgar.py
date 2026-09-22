@@ -10,11 +10,24 @@ logger = logging.getLogger(__name__)
 
 TICKER_MAP_URL = "https://www.sec.gov/files/company_tickers.json"
 SUBMISSIONS_URL = "https://data.sec.gov/submissions/CIK{cik:010d}.json"
-FILING_URL = "https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK={cik:010d}&type={form}"
+DOCUMENT_URL = "https://www.sec.gov/Archives/edgar/data/{cik}/{accession}/{document}"
 
 # Roughly 80% of a large filer's recent submissions are Form 4 and 144 -- insider
 # transactions and sale notices. Those are not events; these are.
 MATERIAL_FORMS = {"8-K", "10-Q", "10-K", "S-1", "424B5", "DEFA14A"}
+
+# An 8-K says what kind of event it reports. Without this the agents see that
+# something material happened but not whether it was earnings or a resignation.
+ITEM_DESCRIPTIONS = {
+    "1.01": "entry into a material agreement",
+    "2.02": "results of operations",
+    "2.05": "costs associated with exit or disposal",
+    "3.02": "unregistered sale of equity",
+    "5.02": "director or officer changes",
+    "7.01": "Regulation FD disclosure",
+    "8.01": "other events",
+    "9.01": "financial statements and exhibits",
+}
 
 FORM_DESCRIPTIONS = {
     "8-K": "Material event reported to the SEC",
@@ -76,18 +89,25 @@ class SecFilingsNewsProvider(NewsProvider):
             published = _parse_filing_date(recent["filingDate"][index])
             if published is None:
                 continue
-            description = (recent.get("primaryDocDescription") or [None] * (index + 1))[index]
+            date = published.date().isoformat()
+            accession = _at(recent, "accessionNumber", index) or ""
             items.append(
                 NewsItem(
                     ticker=ticker,
                     published_at=published,
                     source=self.name,
                     # The form itself is the story; its own description is usually just
-                    # the form number again, so the headline has to be built.
-                    title=f"{ticker} filed {form}: {FORM_DESCRIPTIONS.get(form, form)}",
-                    url=FILING_URL.format(cik=cik, form=form),
+                    # the form number again, so the headline has to be built. The date
+                    # belongs in it: without one, every 8-K a company ever filed shares
+                    # a headline and deduplication collapses them into a single row.
+                    title=f"{ticker} filed {form} on {date}: {FORM_DESCRIPTIONS.get(form, form)}",
+                    url=DOCUMENT_URL.format(
+                        cik=cik,
+                        accession=accession.replace("-", ""),
+                        document=_at(recent, "primaryDocument", index) or "",
+                    ),
                     publisher="SEC EDGAR",
-                    summary=str(description) if description else None,
+                    summary=_summary(recent, index, accession),
                 )
             )
         return items
@@ -100,6 +120,26 @@ class SecFilingsNewsProvider(NewsProvider):
                 str(row["ticker"]).upper(): int(row["cik_str"]) for row in response.json().values()
             }
         return self._ticker_to_cik.get(ticker.upper())
+
+
+def _at(recent: dict, key: str, index: int) -> str | None:
+    values = recent.get(key) or []
+    return str(values[index]) if index < len(values) and values[index] else None
+
+
+def _summary(recent: dict, index: int, accession: str) -> str | None:
+    parts = []
+    raw_items = _at(recent, "items", index)
+    if raw_items:
+        described = [
+            f"{code} ({ITEM_DESCRIPTIONS[code]})" if code in ITEM_DESCRIPTIONS else code
+            for code in (piece.strip() for piece in raw_items.split(","))
+            if code
+        ]
+        parts.append("Items: " + ", ".join(described))
+    if accession:
+        parts.append(f"Accession {accession}")
+    return " | ".join(parts) or None
 
 
 def _parse_filing_date(value: str) -> datetime | None:

@@ -49,4 +49,5 @@ def get_analysis_pipeline() -> AnalysisPipeline:
             max_attempts=settings.gemini_max_attempts,
         ),
         news_days=settings.news_lookback_days,
+        filing_days=settings.filings_lookback_days,
     )

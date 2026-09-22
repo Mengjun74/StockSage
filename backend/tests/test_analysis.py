@@ -166,3 +166,35 @@ def test_analysis_is_unavailable_rather_than_broken_without_a_key() -> None:
     finally:
         deps.get_settings = original
         get_settings.cache_clear()
+
+
+def test_filings_get_their_own_section_and_are_not_crowded_out() -> None:
+    """Material filings are episodic and far fewer than headlines. Sharing one list
+    and one cap would let a busy news day push the latest 10-Q out of view."""
+    from app.analysis.context import MAX_ARTICLES
+
+    headlines = [
+        NewsArticleOut(
+            published_at=datetime(2026, 9, 21, tzinfo=UTC),
+            source="yahoo_rss",
+            publisher="Reuters",
+            title=f"Headline number {i}",
+            summary=None,
+            url=f"https://example.test/{i}",
+        )
+        for i in range(MAX_ARTICLES + 15)
+    ]
+    filing = NewsArticleOut(
+        published_at=datetime(2026, 8, 26, tzinfo=UTC),
+        source="sec_edgar",
+        publisher="SEC EDGAR",
+        title="NVDA filed 10-Q on 2026-08-26: Quarterly report filed with the SEC",
+        summary="Items: 2.02 (results of operations)",
+        url="https://example.test/filing",
+    )
+
+    rendered = _context(articles=[*headlines, filing]).render()
+
+    assert "## SEC filings" in rendered
+    assert "NVDA filed 10-Q on 2026-08-26" in rendered
+    assert "Items: 2.02 (results of operations)" in rendered

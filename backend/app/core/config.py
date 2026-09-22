@@ -26,6 +26,8 @@ class Settings(BaseSettings):
     # to enable filings; until then that source is skipped. No address ships in the repo.
     sec_user_agent: str = "StockSage/0.1"
     news_lookback_days: int = 14
+    # Long enough that the latest quarterly report is always in view.
+    filings_lookback_days: int = 120
 
     openai_api_key: str | None = None
     openai_model: str | None = None

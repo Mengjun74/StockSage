@@ -9,11 +9,13 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 
 from app.analysis.levels import CandidateLevels
+from app.pipelines.news import FILINGS_SOURCE
 from app.schemas.news import NewsArticleOut
 from app.schemas.prices import IndicatorSnapshot, PriceStructure
 
 
 MAX_ARTICLES = 25
+MAX_FILINGS = 10
 MAX_SUMMARY_CHARS = 280
 
 
@@ -33,6 +35,7 @@ class AnalysisContext:
                 self._indicators(),
                 self._structure(),
                 self._news(),
+                self._filings(),
                 self._levels(),
             ]
         )
@@ -72,14 +75,34 @@ class AnalysisContext:
             f"- Resistance: {_nums(*p.resistance_levels) or 'none above'}"
         )
 
+    @property
+    def headlines(self) -> list[NewsArticleOut]:
+        return [a for a in self.articles if a.source != FILINGS_SOURCE]
+
+    @property
+    def filings(self) -> list[NewsArticleOut]:
+        return [a for a in self.articles if a.source == FILINGS_SOURCE]
+
+    def _filings(self) -> str:
+        if not self.filings:
+            return "## SEC filings\nNone in the window."
+        lines = [
+            f"- [{f.published_at.date().isoformat()}] {f.title}"
+            + (f"\n    {f.summary}" if f.summary else "")
+            for f in self.filings[:MAX_FILINGS]
+        ]
+        header = "## SEC filings\nOfficial and dated. Item codes say what kind of "
+        header += "event an 8-K reports.\n"
+        return header + "\n".join(lines)
+
     def _news(self) -> str:
-        if not self.articles:
+        if not self.headlines:
             return (
                 "## News\nNothing published in the window. This is the ordinary state for "
                 "most tickers on most days and is not itself a signal."
             )
         lines = []
-        for article in self.articles[:MAX_ARTICLES]:
+        for article in self.headlines[:MAX_ARTICLES]:
             summary = (article.summary or "").strip().replace("\n", " ")
             if len(summary) > MAX_SUMMARY_CHARS:
                 summary = summary[:MAX_SUMMARY_CHARS].rstrip() + "..."

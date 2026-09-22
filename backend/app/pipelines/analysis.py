@@ -28,11 +28,13 @@ class AnalysisPipeline:
         news: NewsPipeline,
         client: GeminiClient,
         news_days: int,
+        filing_days: int,
     ) -> None:
         self.prices = prices
         self.news = news
         self.client = client
         self.news_days = news_days
+        self.filing_days = filing_days
 
     async def analyse(self, session: AsyncSession, ticker: str, interval: str = "1d", period: str = "1y") -> AnalysisResponse:
         normalized = normalize_ticker(ticker)
@@ -50,7 +52,7 @@ class AnalysisPipeline:
                 "there is nothing for the agents to choose between."
             )
 
-        news = await self.news.read(session, normalized, self.news_days)
+        news = await self.news.read(session, normalized, self.news_days, self.filing_days)
         context = build_context(normalized, prices.snapshot, prices.price_structure, news.articles, levels)
 
         bull, bear = await argue_both_sides(self.client, context)

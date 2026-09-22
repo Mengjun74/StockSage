@@ -150,5 +150,48 @@ def test_sec_keeps_material_filings_and_drops_insider_noise() -> None:
     items = SecFilingsNewsProvider("x (a@b.com)")._to_items("NVDA", 1045810, recent)
 
     assert [i.published_at.date().isoformat() for i in items] == ["2026-09-03", "2026-08-26"]
-    assert items[0].title == "NVDA filed 8-K: Material event reported to the SEC"
+    assert items[0].title == "NVDA filed 8-K on 2026-09-03: Material event reported to the SEC"
     assert all(i.source == "sec_edgar" and i.publisher == "SEC EDGAR" for i in items)
+
+
+def test_two_filings_of_the_same_form_are_two_stories() -> None:
+    """Without the date in the headline, every 8-K a company ever filed shares a title
+    and deduplication keeps one -- dated to the oldest, which then falls outside any
+    recent window."""
+    from app.pipelines.news import deduplicate
+    from app.providers.news.sec_edgar import SecFilingsNewsProvider
+
+    recent = {
+        "form": ["8-K", "8-K"],
+        "filingDate": ["2026-09-03", "2026-08-17"],
+        "primaryDocDescription": ["8-K", "8-K"],
+        "accessionNumber": ["0001045810-26-000078", "0001045810-26-000069"],
+        "primaryDocument": ["nvda-20260902.htm", "nvda-20260817.htm"],
+        "items": ["2.02,9.01", "8.01"],
+    }
+
+    parsed = SecFilingsNewsProvider("x (a@b.com)")._to_items("NVDA", 1045810, recent)
+
+    assert len({item.content_hash for item in parsed}) == 2
+    assert len(deduplicate(parsed)) == 2
+
+
+def test_a_filing_links_to_the_document_and_names_its_items() -> None:
+    from app.providers.news.sec_edgar import SecFilingsNewsProvider
+
+    recent = {
+        "form": ["8-K"],
+        "filingDate": ["2026-09-03"],
+        "primaryDocDescription": ["8-K"],
+        "accessionNumber": ["0001045810-26-000078"],
+        "primaryDocument": ["nvda-20260902.htm"],
+        "items": ["2.02,9.01"],
+    }
+
+    item = SecFilingsNewsProvider("x (a@b.com)")._to_items("NVDA", 1045810, recent)[0]
+
+    assert item.title == "NVDA filed 8-K on 2026-09-03: Material event reported to the SEC"
+    assert item.url == (
+        "https://www.sec.gov/Archives/edgar/data/1045810/000104581026000078/nvda-20260902.htm"
+    )
+    assert "2.02 (results of operations)" in (item.summary or "")
