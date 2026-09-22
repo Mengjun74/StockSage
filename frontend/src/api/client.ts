@@ -1,4 +1,5 @@
 import axios from "axios";
+import type { AnalysisResponse } from "../types/analysis";
 import type { PriceResponse, SupportedInterval, SupportedPeriod } from "../types/prices";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8003/api/v1";
@@ -20,6 +21,14 @@ export async function fetchPrices(
 }
 
 /** Pulls the backend's `{error, message}` detail out of a failed request. */
+/** Runs the agents. A POST, and slow: it spends model calls and records the result. */
+export async function runAnalysis(ticker: string): Promise<AnalysisResponse> {
+  const response = await api.post<AnalysisResponse>(`/stocks/${ticker}/analysis`, null, {
+    timeout: 420000,
+  });
+  return response.data;
+}
+
 export function describeApiError(reason: unknown): string {
   if (axios.isAxiosError(reason)) {
     const detail = reason.response?.data?.detail;

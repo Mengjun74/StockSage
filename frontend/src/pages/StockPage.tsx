@@ -1,8 +1,10 @@
 import { AlertCircle, ArrowLeft, RefreshCw } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { describeApiError, fetchPrices } from "../api/client";
+import { describeApiError, fetchPrices, runAnalysis } from "../api/client";
+import AnalysisPanel from "../components/AnalysisPanel";
 import PriceChart from "../components/PriceChart";
+import type { AnalysisResponse } from "../types/analysis";
 import type { PriceResponse, SupportedPeriod } from "../types/prices";
 import { formatCompact, formatCurrency, formatPercent } from "../utils/format";
 
@@ -15,6 +17,14 @@ export default function StockPage() {
   const [data, setData] = useState<PriceResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [analysis, setAnalysis] = useState<AnalysisResponse | null>(null);
+  const [analysing, setAnalysing] = useState(false);
+  const [analysisError, setAnalysisError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setAnalysis(null);
+    setAnalysisError(null);
+  }, [ticker]);
 
   useEffect(() => {
     let cancelled = false;
@@ -37,6 +47,16 @@ export default function StockPage() {
       cancelled = true;
     };
   }, [ticker, period]);
+
+  // Not run automatically: it spends model calls and records a row to be scored later.
+  function analyse() {
+    setAnalysing(true);
+    setAnalysisError(null);
+    runAnalysis(ticker)
+      .then(setAnalysis)
+      .catch((reason: unknown) => setAnalysisError(describeApiError(reason)))
+      .finally(() => setAnalysing(false));
+  }
 
   return (
     <main className="app-shell">
@@ -84,6 +104,13 @@ export default function StockPage() {
             </section>
 
             <PriceChart prices={data.prices} />
+
+            <AnalysisPanel
+              analysis={analysis}
+              loading={analysing}
+              error={analysisError}
+              onRun={analyse}
+            />
 
             <section className="detail-grid">
               <div className="detail-panel">
